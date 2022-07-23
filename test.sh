@@ -20,7 +20,7 @@ assert() {
 assert 0 0
 assert 42 42
 assert 21 '5+20-4'
-assert 11 '-5+20-4'
-assert 21 '+5+20-4'
+assert 21 "  5 + 20  - 4"
+assert 21 "  5 + 20  - 4 - 0 + 6 - 6 "
 
 echo ====TEST OK!=====
