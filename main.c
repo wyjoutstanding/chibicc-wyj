@@ -27,6 +27,9 @@ static void dump_token(Token *tok) {
             tok->kind, tok->value, tok->loc, tok->len, tok->next);
 }
 
+// input string
+static char *current_input;
+
 // Report a error and exit
 static void error(char *fmt, ...) {
     va_list ap;
@@ -34,6 +37,29 @@ static void error(char *fmt, ...) {
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
     exit(1);
+}
+
+// print error masseage and detail location, then exit
+static void verror_at(char *loc, char *fmt, va_list ap) {
+    int pos = loc - current_input;
+    fprintf(stderr, "%s\n", current_input);
+    fprintf(stderr, "%*s", pos, " ");
+    fprintf(stderr, "^ ");
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
+    exit(1);
+}
+
+static void error_at(char *loc, char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    verror_at(loc, fmt, ap);
+}
+
+static void error_tok(Token *tok, char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    verror_at(tok->loc, fmt, ap);
 }
 
 // Create a new token with calloc
@@ -72,7 +98,7 @@ static Token *tokenize(char *p) {
             cur = cur->next;
         }
         else {
-            // error()
+            error_at(p, "invalid token");
         }
     }
     cur->next = new_token(TK_EOF, p, p);
@@ -82,7 +108,7 @@ static Token *tokenize(char *p) {
 // get value from number token
 static int getNumber(Token *tok) {
     if (tok->kind != TK_NUM) {
-        error("unexpected a number\n");
+        error_tok(tok, "expected a number");
     }
     return tok->value;
 }
@@ -103,6 +129,8 @@ int main(int argc, char **argv) {
     printf("  .global main\n");
     printf("main:\n");
     
+    // save input string into global pointer
+    current_input = argv[1];
     // parse input string
     Token *tok = tokenize(argv[1]);
     // first token must be number
@@ -123,7 +151,7 @@ int main(int argc, char **argv) {
         }
         
         // error handler
-        error("unexpected token\n");
+        error_tok(tok, "expected token '+' or '-'");
         return 1;
     }
 
