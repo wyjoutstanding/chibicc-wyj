@@ -1,9 +1,23 @@
+/**
+ * @file main.c
+ * @author wuyangjun (wuyangjun21@163.com)
+ * @brief 
+ * @version 0.1
+ * @date 2022-07-25
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
 #include <ctype.h>
 #include <stdarg.h>
+
+//
+// Tokenizer
+//
 
 typedef enum {
     TK_PUNCT,   // punctuators
@@ -27,7 +41,7 @@ static void dump_token(Token *tok) {
             tok->kind, tok->value, tok->loc, tok->len, tok->next);
 }
 
-// input string
+// Input string
 static char *current_input;
 
 // Report a error and exit
@@ -86,7 +100,7 @@ static Token *tokenize(char *p) {
             p++;
             continue;
         }
-        if (*p == '+' || *p == '-') {
+        if (ispunct(*p)) {
             cur->next = new_token(TK_PUNCT, p, p+1);
             cur = cur->next;
             p++;
@@ -118,44 +132,181 @@ static bool equal(Token *tok, char *op) {
     return (strlen(op) == tok->len) && (memcmp(tok->loc, op, tok->len) == 0);
 }
 
+// skip a token
+static Token *skip(Token *tok, char *s) {
+    if (!equal(tok, s)) {
+        error_tok(tok, "expected '%s'", s);
+    }
+    return tok->next;
+}
+
+//
+// Parser: constructing abstract syntax tree(AST) from tokens using LL(1) and recursing down implementation
+//
+
+typedef enum {
+    ND_ADD,
+    ND_SUB,
+    ND_MUL,
+    ND_DIV,
+    ND_NUM
+} NodeKind;
+
+// AST node type
+typedef struct Node Node;
+struct Node
+{
+    NodeKind kind;  // Node type
+    int value;      // Number literal
+    Node *lhs;      // Left-Hand Side
+    Node *rhs;      // Right-Hand Side
+};
+
+static Node *new_binary_node(NodeKind kind, Node *lhs, Node *rhs) {
+    Node *node = (Node *)calloc(1, sizeof(Node));
+    node->kind = kind;
+    node->lhs = lhs;
+    node->rhs = rhs;
+    return node;
+}
+
+static Node *expr(Token **rest, Token *tok);
+static Node *primary(Token **rest, Token *tok);
+static Node *mul(Token **rest, Token *tok);
+
+/**
+ * @brief expr     := mul ("+" mul | "-" mul)*
+ * 
+ * @param rest save the newest token pointer, *rest = tok, i.e. update *rest is to tell last stack the newest token value 
+ * @param tok current token pointer
+ * @return Node* 
+ */
+static Node *expr(Token **rest, Token *tok) {
+    Node *node = mul(&tok, tok);
+
+    for (;;) {
+        if (equal(tok, "+")) {
+            node = new_binary_node(ND_ADD, node, mul(&tok, tok->next));
+            continue;
+        }
+        
+        if (equal(tok, "-")) {
+            node = new_binary_node(ND_SUB, node, mul(&tok, tok->next));
+            continue;
+        }
+        break;
+    }
+
+    *rest = tok;    // update the newest token pointer
+    return node;
+}
+
+// mul      := primary ("*" primary | "/" primary)*
+static Node *mul(Token **rest, Token *tok) {
+    Node *node = primary(&tok, tok);
+
+    for (;;) {
+        if (equal(tok, "*")) {
+            node = new_binary_node(ND_MUL, node, primary(&tok, tok->next));
+            continue;
+        }
+        
+        if (equal(tok, "/")) {
+            node = new_binary_node(ND_DIV, node, primary(&tok, tok->next));
+            continue;
+        }
+        break;
+    }
+
+    *rest = tok;
+    return node;
+}
+
+// primary  := num | "(" expr ")" 
+static Node *primary(Token **rest, Token *tok) {
+    if (tok->kind == TK_NUM) {
+        Node *node = (Node *)calloc(1, sizeof(Node));
+        node->kind = ND_NUM;
+        node->value = tok->value;
+        *rest = tok->next;
+        return node;
+    }
+
+    if (equal(tok, "(")) {
+        Node *node = expr(&tok, tok->next);
+        *rest = skip(tok, ")");
+        return node;
+    }
+
+    error_tok(tok, "expected an expression");
+}
+
+// 
+// Code generator: with stack implemetation, just post-traverse the AST
+//
+
+static void push(void) {
+    printf("  push %%rax\n");
+}
+
+static void pop(char *arg) {
+    printf("  pop %s\n", arg);
+}
+
+static void gen_expr(Node *node) {
+    if (node->kind == ND_NUM) {
+        printf("  mov $%d, %%rax\n", node->value);
+        return;
+    }
+
+    gen_expr(node->rhs);
+    push();
+    gen_expr(node->lhs);
+    pop("%rdi");
+    
+    // detail calculation
+    switch (node->kind)
+    {
+        case ND_ADD:
+            printf("  add %%rdi, %%rax\n");
+            break;
+        case ND_SUB:
+            printf("  sub %%rdi, %%rax\n");
+            break;
+        case ND_MUL:
+            printf("  imul %%rdi, %%rax\n");
+            break;
+        case ND_DIV:
+            printf("  cqo\n");
+            printf("  idiv %%rdi\n");
+            break;
+        default:
+            error("unexpected node kind '%s'", node->kind);
+            break;
+    }
+    return;
+}
+
 int main(int argc, char **argv) {
     // input arguments error check
     if (argc != 2) {
         error("%s: invalid number of arguments\n", argv[0]);
         return 1;
     }
-
-    // output X86-64 ASM code
-    printf("  .global main\n");
-    printf("main:\n");
     
     // save input string into global pointer
     current_input = argv[1];
-    // parse input string
+    // tokenize input string
     Token *tok = tokenize(argv[1]);
-    // first token must be number
-    printf("  mov $%d, %%rax\n", getNumber(tok));
-    tok = tok->next;
-
-    while (tok != NULL && tok->kind != TK_EOF) {
-        if (equal(tok, "+")) {
-            printf("  add $%d, %%rax\n", getNumber(tok->next));
-            tok = tok->next->next;
-            continue;
-        }
-
-        if (equal(tok, "-")) {
-            printf("  sub $%d, %%rax\n", getNumber(tok->next));
-            tok = tok->next->next;
-            continue;
-        }
-        
-        // error handler
-        error_tok(tok, "expected token '+' or '-'");
-        return 1;
-    }
-
-    // return the result of the input expression
+    
+    // parse token into syntax tree
+    Node *node = expr(&tok, tok);
+    
+    // generate asm code from syntax tree
+    printf("  .global main\n");
+    printf("main:\n");
+    gen_expr(node);
     printf("  ret\n");
+    
     return 0;
 }
