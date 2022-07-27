@@ -101,6 +101,15 @@ static Token *tokenize(char *p) {
             continue;
         }
         if (ispunct(*p)) {
+            if ((*p == '=' && *(p+1) == '=') ||
+                (*p == '!' && *(p+1) == '=') || 
+                (*p == '<' && *(p+1) == '=') ||
+                (*p == '>' && *(p+1) == '=')) {
+               cur->next = new_token(TK_PUNCT, p, p+2);
+               cur = cur->next;
+               p = p + 2;
+               continue;
+            }
             cur->next = new_token(TK_PUNCT, p, p+1);
             cur = cur->next;
             p++;
@@ -145,11 +154,20 @@ static Token *skip(Token *tok, char *s) {
 //
 
 typedef enum {
+    /* arithmetic operators */
     ND_ADD, // +
     ND_SUB, // -
     ND_MUL, // *
     ND_DIV, // /
     ND_NEG, // unary -
+    /* comparison operators */
+    ND_EQ,  // ==
+    ND_NE,  // !=
+    ND_LT,  // <
+    ND_LE,  // <=
+    ND_GT,  // >
+    ND_GE,  // >=
+    /* integer */
     ND_NUM  // Integer
 } NodeKind;
 
@@ -178,23 +196,79 @@ static Node *new_unary_node(NodeKind kind, Node *lhs) {
     return node;
 }
 
-// expr    = mul ("+" mul | "-" mul)*
-// mul     = unary ("*" unary | "/" unary)*
-// unary   = ("+" | "-")? primary
-// primary = num | "(" expr ")"
+// expr       = equality
+// equality   = relational ("==" relational | "!=" relational)*
+// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+// add        = mul ("+" mul | "-" mul)*
+// mul        = unary ("*" unary | "/" unary)*
+// unary      = ("+" | "-")? primary
+// primary    = num | "(" expr ")"
 static Node *expr(Token **rest, Token *tok);
+static Node *equality(Token **rest, Token *tok);
+static Node *relational(Token **rest, Token *tok);
+static Node *add(Token **rest, Token *tok);
 static Node *mul(Token **rest, Token *tok);
 static Node *unary(Token **rest, Token *tok);
 static Node *primary(Token **rest, Token *tok);
 
-/**
- * @brief expr     := mul ("+" mul | "-" mul)*
- * 
- * @param rest save the newest token pointer, *rest = tok, i.e. update *rest is to tell last stack the newest token value 
- * @param tok current token pointer
- * @return Node* 
- */
+// expr       = equality
 static Node *expr(Token **rest, Token *tok) {
+    Node *node = equality(&tok, tok);
+    *rest = tok;
+    return node;
+}
+
+// equality   = relational ("==" relational | "!=" relational)*
+static Node *equality(Token **rest, Token *tok) {
+    Node *node = relational(&tok, tok);
+
+    for (;;) {
+        if (equal(tok, "==")) {
+            node = new_binary_node(ND_EQ, node, relational(&tok, tok->next));
+            continue;
+        }
+        if (equal(tok, "!=")) {
+            node = new_binary_node(ND_NE, node, relational(&tok, tok->next));
+            continue;
+        }
+        break;
+    }
+
+    *rest = tok;
+    return node;
+}
+
+// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+static Node *relational(Token **rest, Token *tok) {
+    Node *node = add(&tok, tok);
+
+    for (;;) {
+        if (equal(tok, "<")) {
+            node = new_binary_node(ND_LT, node, add(&tok, tok->next));
+            continue;
+        }
+        if (equal(tok, "<=")) {
+            node = new_binary_node(ND_LE, node, add(&tok, tok->next));
+            continue;
+        }
+        if (equal(tok, ">")) {
+            node = new_binary_node(ND_GT, node, add(&tok, tok->next));
+            continue;
+        }
+        if (equal(tok, ">=")) {
+            node = new_binary_node(ND_GE, node, add(&tok, tok->next));
+            continue;
+        }
+        break;
+    }
+
+    *rest = tok;
+    return node;
+
+}
+
+// add        = mul ("+" mul | "-" mul)*
+static Node *add(Token **rest, Token *tok) {
     Node *node = mul(&tok, tok);
 
     for (;;) {
@@ -301,6 +375,10 @@ static void pop(char *arg) {
 }
 
 static void gen_expr(Node *node) {
+    // simplify comparision generator code
+    static char *cmp_asm_names[] = { "sete", "setne", "setl", "setle", "setg", "setge"};
+    #define CMP_ASM_NAME(x) cmp_asm_names[(x) - ND_EQ]
+
     switch (node->kind)
     {
         case ND_NUM:
@@ -320,6 +398,7 @@ static void gen_expr(Node *node) {
     // detail calculation
     switch (node->kind)
     {
+        /* arithmetic operators */
         case ND_ADD:
             printf("  add %%rdi, %%rax\n");
             break;
@@ -330,9 +409,23 @@ static void gen_expr(Node *node) {
             printf("  imul %%rdi, %%rax\n");
             break;
         case ND_DIV:
-            printf("  cqo\n");
+            printf("  cqo\n");  // RDX:RAX:= sign-extend of RAX
             printf("  idiv %%rdi\n");
             break;
+
+        /* comparison operators */
+        case ND_EQ:
+        case ND_NE:
+        case ND_LT:
+        case ND_LE:
+        case ND_GT:
+        case ND_GE:
+            printf("  cmp %%rdi, %%rax\n");     // rax - rdi
+            printf("  %s %%al\n", CMP_ASM_NAME(node->kind));
+            printf("  movzb %%al, %%rax\n");    // zero extend
+            break;
+        
+        /* error handle */
         default:
             error("unexpected node kind '%s'", node->kind);
             break;
