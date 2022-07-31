@@ -19,6 +19,14 @@ static void pop(char *arg) {
     printf("  pop %s\n", arg);
 }
 
+static void gen_addr(Node *node) {
+    if (node->kind != ND_VAR)
+        error("[gen_addr] expected variable: lvalue");
+
+    int disp = (node->name - 'a' + 1) * 8;
+    printf("  lea -%d(%%rbp), %%rax\n", disp);
+}
+
 void gen_expr(Node *node) {
     // simplify comparision generator code
     static char *cmp_asm_names[] = {"sete", "setne", "setl", "setle", "setg", "setge"};
@@ -32,6 +40,19 @@ void gen_expr(Node *node) {
         case ND_NEG:
             gen_expr(node->lhs);
             printf("  neg %%rax\n");
+            return;
+        case ND_VAR:
+            gen_addr(node);
+            printf("  mov (%%rax), %%rax\n");
+            return;
+        case ND_ASSIGN:
+            // Firstly, using %eax to push all left variable address into stack, then %eax only save the rightmost number value
+            // e.g. a=b=c=3 => (1) push a; push b; push c; (2) %rax=3, %rdi=c; %rax=3, %rdi=b; %rax=3, %rdi=a
+            gen_addr(node->lhs);
+            push();
+            gen_expr(node->rhs);
+            pop("%rdi");
+            printf("  mov %%rax, (%%rdi)\n");
             return;
     }
 
@@ -90,8 +111,16 @@ void gen_stmt(Node *node) {
 void codegen(Node *node) {
     printf("  .global main\n");
     printf("main:\n");
+
+    // allocate stack for local variables
+    printf("  push %%rbp\n");
+    printf("  mov %%rsp, %%rbp\n");
+    printf("  sub $208, %%rsp\n");
     for (Node *n = node; n != NULL; n = n->next) {
         gen_stmt(n);
     }
+    // restore stack
+    printf("  mov %%rbp, %%rsp\n");
+    printf("  pop %%rbp\n");
     printf("  ret\n");
 }

@@ -96,11 +96,18 @@ Token *tokenize(char *p) {
     Token *cur = &head;
 
     while (*p) {
+        // white space
         if (isspace(*p)) {
             p++;
             continue;
         }
-        if (ispunct(*p)) {
+
+        if (*p >= 'a' && *p <= 'z') {
+            cur->next = new_token(TK_IDENT, p, p+1);
+            cur = cur->next;
+            p = p + 1;
+        }
+        else if (ispunct(*p)) {
             if ((*p == '=' && *(p+1) == '=') ||
                 (*p == '!' && *(p+1) == '=') || 
                 (*p == '<' && *(p+1) == '=') ||

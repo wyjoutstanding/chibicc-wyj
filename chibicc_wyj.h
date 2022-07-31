@@ -21,6 +21,7 @@
 //
 
 typedef enum {
+    TK_IDENT,   // identifiers
     TK_PUNCT,   // punctuators
     TK_NUM,     // numeric literals
     TK_EOF      // end-of-file maker
@@ -43,22 +44,24 @@ struct Token {
 
 typedef enum {
     /* arithmetic operators */
-    ND_ADD, // +
-    ND_SUB, // -
-    ND_MUL, // *
-    ND_DIV, // /
-    ND_NEG, // unary -
+    ND_ADD,         // +
+    ND_SUB,         // -
+    ND_MUL,         // *
+    ND_DIV,         // /
+    ND_NEG,         // unary -
     /* comparison operators */
-    ND_EQ,  // ==
-    ND_NE,  // !=
-    ND_LT,  // <
-    ND_LE,  // <=
-    ND_GT,  // >
-    ND_GE,  // >=
+    ND_EQ,          // ==
+    ND_NE,          // !=
+    ND_LT,          // <
+    ND_LE,          // <=
+    ND_GT,          // >
+    ND_GE,          // >=
+    ND_VAR,         // variable
     /* statement */
     ND_EXPR_STMT,   // expression statement
+    ND_ASSIGN,      // =
     /* integer */
-    ND_NUM  // Integer
+    ND_NUM          // Integer
 } NodeKind;
 
 // AST node type
@@ -66,10 +69,11 @@ typedef struct Node Node;
 struct Node
 {
     NodeKind kind;  // Node type
-    int value;      // Number literal
+    int value;      // Number literal (if kind == ND_NUM)
     Node *lhs;      // Left-Hand Side
     Node *rhs;      // Right-Hand Side
-    Node *next;     // next stmt
+    Node *next;     // Next stmt
+    char name;      // Variable name (if kind == ND_VAR)
 };
 
 
