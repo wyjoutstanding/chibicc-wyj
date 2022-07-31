@@ -26,6 +26,8 @@ static Node *new_unary_node(NodeKind kind, Node *lhs) {
     return node;
 }
 
+// stmt       = expr_stmt
+// expr_stmt  = expr ";"
 // expr       = equality
 // equality   = relational ("==" relational | "!=" relational)*
 // relational = add ("<" add | "<=" add | ">" add | ">=" add)*
@@ -33,6 +35,8 @@ static Node *new_unary_node(NodeKind kind, Node *lhs) {
 // mul        = unary ("*" unary | "/" unary)*
 // unary      = ("+" | "-")? primary
 // primary    = num | "(" expr ")"
+Node *stmt(Token **rest, Token *tok);
+Node *expr_stmt(Token **rest, Token *tok);
 Node *expr(Token **rest, Token *tok);
 static Node *equality(Token **rest, Token *tok);
 static Node *relational(Token **rest, Token *tok);
@@ -40,6 +44,20 @@ static Node *add(Token **rest, Token *tok);
 static Node *mul(Token **rest, Token *tok);
 static Node *unary(Token **rest, Token *tok);
 static Node *primary(Token **rest, Token *tok);
+
+// stmt       = expr_stmt
+Node *stmt(Token **rest, Token *tok) {
+    Node *node = expr_stmt(&tok, tok);
+    *rest = tok;
+    return node;
+}
+
+// expr_stmt  = expr ";"
+Node *expr_stmt(Token **rest, Token *tok) {
+    Node *node = new_unary_node(ND_EXPR_STMT, expr(&tok, tok));
+    *rest = skip(tok, ";");
+    return node;
+}
 
 // expr       = equality
 Node *expr(Token **rest, Token *tok) {
@@ -193,9 +211,13 @@ static Node *primary(Token **rest, Token *tok) {
 }
 
 Node *parse(Token *tok) {
-    Node *node = expr(&tok, tok);
-    if (tok->kind != TK_EOF) {
-        error_tok(tok, "extra token");
+    Node head;
+    // construct a list of statements AST
+    Node *cur = &head;
+    for (; tok->kind != TK_EOF; cur = cur->next) {
+        cur->next = stmt(&tok, tok);
     }
-    return node;
+    // End-Of-List marker
+    cur->next = NULL;
+    return head.next;
 }

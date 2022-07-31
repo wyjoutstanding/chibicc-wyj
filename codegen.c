@@ -21,7 +21,7 @@ static void pop(char *arg) {
 
 void gen_expr(Node *node) {
     // simplify comparision generator code
-    static char *cmp_asm_names[] = { "sete", "setne", "setl", "setle", "setg", "setge"};
+    static char *cmp_asm_names[] = {"sete", "setne", "setl", "setle", "setg", "setge"};
     #define CMP_ASM_NAME(x) cmp_asm_names[(x) - ND_EQ]
 
     switch (node->kind)
@@ -78,9 +78,20 @@ void gen_expr(Node *node) {
     return;
 }
 
+void gen_stmt(Node *node) {
+    if (node->kind == ND_EXPR_STMT) {
+        gen_expr(node->lhs);
+        return;
+    }
+
+    error("[gen_stmt] invalid statement");
+}
+
 void codegen(Node *node) {
     printf("  .global main\n");
     printf("main:\n");
-    gen_expr(node);
+    for (Node *n = node; n != NULL; n = n->next) {
+        gen_stmt(n);
+    }
     printf("  ret\n");
 }

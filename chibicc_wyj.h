@@ -55,6 +55,8 @@ typedef enum {
     ND_LE,  // <=
     ND_GT,  // >
     ND_GE,  // >=
+    /* statement */
+    ND_EXPR_STMT,   // expression statement
     /* integer */
     ND_NUM  // Integer
 } NodeKind;
@@ -67,6 +69,7 @@ struct Node
     int value;      // Number literal
     Node *lhs;      // Left-Hand Side
     Node *rhs;      // Right-Hand Side
+    Node *next;     // next stmt
 };
 
 
