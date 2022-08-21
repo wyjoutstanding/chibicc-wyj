@@ -84,6 +84,17 @@ Token *skip(Token *tok, char *s) {
     return tok->next;
 }
 
+// recognize keywords from TK_IDENT
+static void recognize_keywords(Token *tok) {
+    for (Token *t = tok; t->kind != TK_EOF; t = t->next) {
+        if (t->kind == TK_IDENT) {
+            if (equal(t, "return")) {
+                t->kind = TK_KEYWORD;
+            }
+        }
+    }
+}
+
 
 /**
  * @brief split input into a list of tokens
@@ -104,7 +115,7 @@ Token *tokenize(char *p) {
             continue;
         }
 
-        // TK_IDENT
+        // TK_IDENT / TK_KEYWORD
         if (*p >= 'a' && *p <= 'z' || *p >= 'A' && *p <= 'Z') {
             char *st = p;
             do {
@@ -138,5 +149,7 @@ Token *tokenize(char *p) {
         }
     }
     cur->next = new_token(TK_EOF, p, p);
+
+    recognize_keywords(head.next);
     return head.next;
 }

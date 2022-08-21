@@ -26,6 +26,7 @@
 //
 
 typedef enum {
+    TK_KEYWORD, // keywords
     TK_IDENT,   // identifiers
     TK_PUNCT,   // punctuators
     TK_NUM,     // numeric literals
@@ -66,6 +67,7 @@ typedef enum {
     ND_GE,          // >=
     ND_VAR,         // variable
     /* statement */
+    ND_RETURN,      // keyword: return statement
     ND_EXPR_STMT,   // expression statement
     ND_ASSIGN,      // =
     /* integer */

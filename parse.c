@@ -61,7 +61,7 @@ static Variable *find_local_variable(char *name, int len) {
     return NULL;
 }
 
-// stmt       = expr_stmt
+// stmt       = "return" expr ";" | expr_stmt
 // expr_stmt  = expr ";"
 // expr       = assign
 // assign     = equality ("=" assign)?
@@ -82,8 +82,13 @@ static Node *mul(Token **rest, Token *tok);
 static Node *unary(Token **rest, Token *tok);
 static Node *primary(Token **rest, Token *tok);
 
-// stmt       = expr_stmt
+// stmt       = "return" expr ";" | expr_stmt
 Node *stmt(Token **rest, Token *tok) {
+    if (equal(tok, "return")) {
+        Node *node = new_unary_node(ND_RETURN, expr(&tok->next, tok->next));
+        *rest = skip(tok->next, ";");
+        return node;
+    }
     Node *node = expr_stmt(&tok, tok);
     *rest = tok;
     return node;

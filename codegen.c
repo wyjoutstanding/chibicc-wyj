@@ -115,6 +115,12 @@ void gen_stmt(Node *node) {
         return;
     }
 
+    if (node->kind == ND_RETURN) {
+        gen_expr(node->lhs);
+        printf("  jmp .L.RETURN\n");
+        return;
+    }
+
     error("[gen_stmt] invalid statement");
 }
 
@@ -132,6 +138,7 @@ void codegen(Function *func) {
         gen_stmt(n);
     }
     // restore stack
+    printf(".L.RETURN:\n");
     printf("  mov %%rbp, %%rsp\n");
     printf("  pop %%rbp\n");
     printf("  ret\n");
