@@ -8,6 +8,11 @@
  * @copyright Copyright (c) 2022
  * 
  */
+#ifndef CHIBICC_WYJ
+#define CHIBICC_WYJ
+
+// need for `strndup`
+#define _POSIX_C_SOURCE 200809L
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,6 +46,9 @@ struct Token {
 //
 // Parse: constructing abstract syntax tree(AST) from tokens using LL(1) and recursing down implementation
 //
+typedef struct Node Node;
+typedef struct Variable Variable;
+typedef struct Function Function;
 
 typedef enum {
     /* arithmetic operators */
@@ -65,15 +73,28 @@ typedef enum {
 } NodeKind;
 
 // AST node type
-typedef struct Node Node;
-struct Node
-{
+struct Node {
     NodeKind kind;  // Node type
     int value;      // Number literal (if kind == ND_NUM)
     Node *lhs;      // Left-Hand Side
     Node *rhs;      // Right-Hand Side
     Node *next;     // Next stmt
-    char name;      // Variable name (if kind == ND_VAR)
+    char *name;     // Variable name (if kind == ND_VAR)
+    Variable *lvar; // Variable info (if kind == ND_VAR) 
+};
+
+// Variable
+struct Variable {
+    char *name;     // variable name
+    int offset;       // displacement used by stack
+    Variable *next; // used by list
+};
+
+// Functions
+struct Function {
+    Variable *locals;   // local variable
+    Node *body;         // stmt body
+    int stacksize;      // stack size
 };
 
 
@@ -83,8 +104,8 @@ struct Node
 
 // key api
 Token *tokenize(char *p);
-Node *parse(Token *tok);
-void codegen(Node *node);
+Function *parse(Token *tok);
+void codegen(Function *func);
 
 // utils
 void error(char *fmt, ...);
@@ -92,3 +113,5 @@ void error_at(char *loc, char *fmt, ...);
 void error_tok(Token *tok, char *fmt, ...);
 bool equal(Token *tok, char *op);
 Token *skip(Token *tok, char *s);
+
+#endif

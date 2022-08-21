@@ -22,10 +22,10 @@ int main(int argc, char **argv) {
     Token *tok = tokenize(argv[1]);
     
     // parse token into syntax tree
-    Node *node = parse(tok);
+    Function *func = parse(tok);
     
     // generate asm code from syntax tree
-    codegen(node);
+    codegen(func);
     
     return 0;
 }

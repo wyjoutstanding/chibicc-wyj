@@ -25,6 +25,7 @@ void error(char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
     vfprintf(stderr, fmt, ap);
+    fprintf(stderr, " [%s:%d]", __FILE__, __LINE__);
     fprintf(stderr, "\n");
     exit(1);
 }
@@ -32,7 +33,8 @@ void error(char *fmt, ...) {
 // print error masseage and detail location, then exit
 static void verror_at(char *loc, char *fmt, va_list ap) {
     int pos = loc - current_input;
-    fprintf(stderr, "%s\n", current_input);
+    fprintf(stderr, "%s", current_input);
+    fprintf(stderr, " [%s:%d]\n", __FILE__, __LINE__);
     fprintf(stderr, "%*s", pos, " ");
     fprintf(stderr, "^ ");
     vfprintf(stderr, fmt, ap);
@@ -102,10 +104,14 @@ Token *tokenize(char *p) {
             continue;
         }
 
-        if (*p >= 'a' && *p <= 'z') {
-            cur->next = new_token(TK_IDENT, p, p+1);
+        // TK_IDENT
+        if (*p >= 'a' && *p <= 'z' || *p >= 'A' && *p <= 'Z') {
+            char *st = p;
+            do {
+                p = p + 1;
+            } while (*p >= 'a' && *p <= 'z' || *p >= 'A' && *p <= 'Z' || isdigit(*p));
+            cur->next = new_token(TK_IDENT, st, p);
             cur = cur->next;
-            p = p + 1;
         }
         else if (ispunct(*p)) {
             if ((*p == '=' && *(p+1) == '=') ||

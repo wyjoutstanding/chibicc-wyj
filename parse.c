@@ -11,6 +11,9 @@
 
 #include "chibicc_wyj.h"
 
+// local variables list in function
+static Variable *locals;
+
 static Node *new_binary_node(NodeKind kind, Node *lhs, Node *rhs) {
     Node *node = (Node *)calloc(1, sizeof(Node));
     node->kind = kind;
@@ -26,11 +29,36 @@ static Node *new_unary_node(NodeKind kind, Node *lhs) {
     return node;
 }
 
-static Node *new_var_node(char name) {
+// new a variable node
+static Node *new_var_node(char *name, Variable *lvar) {
     Node *node = (Node *)calloc(1, sizeof(Node));
     node->kind = ND_VAR;
     node->name = name;
+    node->lvar = lvar;  // local variable
     return node;
+}
+
+// new a local variable info
+static Variable *new_lvar(char *name, int len) {
+    Variable *lvar = (Variable *)calloc(1, sizeof(Variable));
+    // copy into new buffer: _POSIX_C_SOURCE >= 200809L
+    lvar->name = strndup(name, len);
+    // update global `locals`
+    lvar->next = locals;
+    locals = lvar;
+    return lvar;
+}
+
+// find whether `name` exists in `locals`
+static Variable *find_local_variable(char *name, int len) {
+    // traverse all local variables
+    for (Variable *pv = locals; pv != NULL; pv = pv->next) {
+        if (len == strlen(pv->name) && strncmp(name, pv->name, len) == 0) {
+            return pv;
+        }
+    }
+    // unexist
+    return NULL;
 }
 
 // stmt       = expr_stmt
@@ -221,7 +249,12 @@ static Node *primary(Token **rest, Token *tok) {
     }
 
     if (tok->kind == TK_IDENT) {
-        Node *node = new_var_node(*tok->loc);
+        Variable *lvar = find_local_variable(tok->loc, tok->len);
+        if (!lvar) {
+            // new local variable
+            lvar = new_lvar(tok->loc, tok->len);
+        }
+        Node *node = new_var_node(tok->loc, lvar);
         *rest = tok->next;
         return node;
     }
@@ -235,7 +268,7 @@ static Node *primary(Token **rest, Token *tok) {
     error_tok(tok, "expected an expression");
 }
 
-Node *parse(Token *tok) {
+Function *parse(Token *tok) {
     Node head;
     // construct a list of statements AST
     Node *cur = &head;
@@ -244,5 +277,10 @@ Node *parse(Token *tok) {
     }
     // End-Of-List marker
     cur->next = NULL;
-    return head.next;
+    
+    // wrapper of Function
+    Function *func = malloc(sizeof(Function));
+    func->locals = locals;
+    func->body = head.next;
+    return func;
 }

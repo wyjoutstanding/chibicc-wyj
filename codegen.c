@@ -23,8 +23,18 @@ static void gen_addr(Node *node) {
     if (node->kind != ND_VAR)
         error("[gen_addr] expected variable: lvalue");
 
-    int disp = (node->name - 'a' + 1) * 8;
-    printf("  lea -%d(%%rbp), %%rax\n", disp);
+    int offset = node->lvar->offset;
+    printf("  lea %d(%%rbp), %%rax\n", offset);
+}
+
+// calculate offset of local variables
+static void gen_lvar_offset(Function *func) {
+    int offset = 0;
+    for (Variable *pv=func->locals; pv; pv=pv->next) {
+        offset += 8;
+        pv->offset -= offset;
+    }
+    func->stacksize = offset;
 }
 
 void gen_expr(Node *node) {
@@ -108,15 +118,17 @@ void gen_stmt(Node *node) {
     error("[gen_stmt] invalid statement");
 }
 
-void codegen(Node *node) {
+void codegen(Function *func) {
+    gen_lvar_offset(func);
+
     printf("  .global main\n");
     printf("main:\n");
 
     // allocate stack for local variables
     printf("  push %%rbp\n");
     printf("  mov %%rsp, %%rbp\n");
-    printf("  sub $208, %%rsp\n");
-    for (Node *n = node; n != NULL; n = n->next) {
+    printf("  sub $%d, %%rsp\n", func->stacksize);
+    for (Node *n = func->body; n != NULL; n = n->next) {
         gen_stmt(n);
     }
     // restore stack
