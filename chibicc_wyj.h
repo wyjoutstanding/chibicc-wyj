@@ -67,6 +67,7 @@ typedef enum {
     ND_GE,          // >=
     ND_VAR,         // variable
     /* statement */
+    ND_IF,          // if statement
     ND_BLOCK,       // {...}: block statement
     ND_RETURN,      // keyword: return statement
     ND_EXPR_STMT,   // expression statement
@@ -79,12 +80,18 @@ typedef enum {
 struct Node {
     NodeKind kind;  // Node type
     int value;      // Number literal (if kind == ND_NUM)
-    Node *body;     // Block body, need by BLOCK Statement {...}
     Node *lhs;      // Left-Hand Side
     Node *rhs;      // Right-Hand Side
     Node *next;     // Next stmt
+    // variable
     char *name;     // Variable name (if kind == ND_VAR)
     Variable *lvar; // Variable info (if kind == ND_VAR) 
+    // block statement
+    Node *body;     // Block body, need by BLOCK Statement {...}
+    // if statement
+    Node *cond;     // condition
+    Node *then;     // then statements
+    Node *els;      // else statements
 };
 
 // Variable

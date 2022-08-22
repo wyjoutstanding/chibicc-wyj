@@ -65,6 +65,7 @@ static Variable *find_local_variable(char *name, int len) {
 }
 
 // stmt       = "return" expr ";" | expr_stmt | "{" compound_stmt
+//              | "if" "(" expr ")" stmt ("else" stmt)?
 // compound_stmt = stmt* "}"
 // expr_stmt  = expr? ";"
 // expr       = assign
@@ -88,6 +89,7 @@ static Node *unary(Token **rest, Token *tok);
 static Node *primary(Token **rest, Token *tok);
 
 // stmt       = "return" expr ";" | expr_stmt | "{" compound_stmt
+//              | "if" "(" expr ")" stmt ("else" stmt)?
 Node *stmt(Token **rest, Token *tok) {
     if (equal(tok, "return")) {
         Node *node = new_unary_node(ND_RETURN, expr(&tok->next, tok->next));
@@ -99,6 +101,20 @@ Node *stmt(Token **rest, Token *tok) {
         Node *node = new_node(ND_BLOCK);
         node->body = compound_stmt(&tok->next, tok->next);
         *rest = tok->next;
+        return node;
+    }
+
+    if (equal(tok, "if")) {
+        tok = skip(tok->next, "(");
+        Node *node = new_node(ND_IF);
+        node->cond = expr(&tok, tok);
+        tok = skip(tok, ")");
+        node->then = stmt(&tok, tok);
+        if (equal(tok, "else")) {
+            tok = tok->next;
+            node->els = stmt(&tok, tok);
+        }
+        *rest = tok;
         return node;
     }
 

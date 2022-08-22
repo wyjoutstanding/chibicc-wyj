@@ -84,17 +84,24 @@ Token *skip(Token *tok, char *s) {
     return tok->next;
 }
 
+static bool is_keyword(Token *tok) {
+    static char *kw[] = {"return", "if", "else"};
+    for (int i = 0; i < sizeof(kw)/sizeof(*kw); i++) {
+        if (equal(tok, kw[i])) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // recognize keywords from TK_IDENT
 static void recognize_keywords(Token *tok) {
     for (Token *t = tok; t->kind != TK_EOF; t = t->next) {
-        if (t->kind == TK_IDENT) {
-            if (equal(t, "return")) {
-                t->kind = TK_KEYWORD;
-            }
+        if (t->kind == TK_IDENT && is_keyword(tok)) {
+            t->kind = TK_KEYWORD;
         }
     }
 }
-
 
 /**
  * @brief split input into a list of tokens

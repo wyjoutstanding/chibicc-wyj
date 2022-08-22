@@ -37,6 +37,11 @@ static void gen_lvar_offset(Function *func) {
     func->stacksize = offset;
 }
 
+static int label_count() {
+    static int cnt = 0;
+    return cnt++;
+}
+
 void gen_expr(Node *node) {
     // simplify comparision generator code
     static char *cmp_asm_names[] = {"sete", "setne", "setl", "setle", "setg", "setge"};
@@ -125,6 +130,21 @@ void gen_stmt(Node *node) {
         for (Node *n = node->body; n; n = n->next) {
             gen_stmt(n);
         }
+        return;
+    }
+
+    if (node->kind == ND_IF) {
+        int lcnt = label_count();
+        gen_expr(node->cond);
+        printf("  cmp $0, %%rax\n");
+        printf("  je .L.ELSE.%d\n", lcnt);
+        gen_stmt(node->then);
+        printf("  jmp .L.END.%d\n", lcnt);
+        printf(".L.ELSE.%d:\n", lcnt);
+        if (node->els) {
+            gen_stmt(node->els);
+        }
+        printf(".L.END.%d:\n", lcnt);
         return;
     }
 
