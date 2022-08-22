@@ -66,6 +66,7 @@ static Variable *find_local_variable(char *name, int len) {
 
 // stmt       = "return" expr ";" | expr_stmt | "{" compound_stmt
 //              | "if" "(" expr ")" stmt ("else" stmt)?
+//              | "for" "(" expr_stmt expr?; expr? ")" stmt
 // compound_stmt = stmt* "}"
 // expr_stmt  = expr? ";"
 // expr       = assign
@@ -90,6 +91,7 @@ static Node *primary(Token **rest, Token *tok);
 
 // stmt       = "return" expr ";" | expr_stmt | "{" compound_stmt
 //              | "if" "(" expr ")" stmt ("else" stmt)?
+//              | "for" "(" expr_stmt expr?; expr? ")" stmt
 Node *stmt(Token **rest, Token *tok) {
     if (equal(tok, "return")) {
         Node *node = new_unary_node(ND_RETURN, expr(&tok->next, tok->next));
@@ -114,6 +116,25 @@ Node *stmt(Token **rest, Token *tok) {
             tok = tok->next;
             node->els = stmt(&tok, tok);
         }
+        *rest = tok;
+        return node;
+    }
+
+    if (equal(tok, "for")) {
+        tok = skip(tok->next, "(");
+        Node *node = new_node(ND_FOR);
+        // init;
+        node->init = expr_stmt(&tok, tok);
+        // cond;
+        if (!equal(tok, ";"))
+            node->cond = expr(&tok, tok);
+        tok = skip(tok, ";");
+        // inc
+        if (!equal(tok, ")"))
+            node->inc = expr(&tok, tok);
+        tok = skip(tok, ")");
+        // then statements
+        node->then = stmt(&tok, tok);
         *rest = tok;
         return node;
     }

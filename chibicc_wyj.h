@@ -67,6 +67,7 @@ typedef enum {
     ND_GE,          // >=
     ND_VAR,         // variable
     /* statement */
+    ND_FOR,         // for statement
     ND_IF,          // if statement
     ND_BLOCK,       // {...}: block statement
     ND_RETURN,      // keyword: return statement
@@ -88,10 +89,12 @@ struct Node {
     Variable *lvar; // Variable info (if kind == ND_VAR) 
     // block statement
     Node *body;     // Block body, need by BLOCK Statement {...}
-    // if statement
+    // if / for statement
     Node *cond;     // condition
     Node *then;     // then statements
     Node *els;      // else statements
+    Node *init;     // for init statement
+    Node *inc;      // for increment statement
 };
 
 // Variable

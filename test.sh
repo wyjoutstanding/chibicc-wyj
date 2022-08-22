@@ -5,7 +5,7 @@ assert() {
     input="$2"
 
     ./chibicc-wyj "$input" > tmp.s || exit
-    gcc -static -o tmp tmp.s
+    gcc -g -static -o tmp tmp.s
     ./tmp
     actual="$?"
 
@@ -83,11 +83,16 @@ assert 3 '{ {1; {2;} {} return 3;} }'
 # null statement
 assert 5 '{ ;;; return 5; }'
 
+# if statement
 assert 3 '{ if (0) return 2; return 3; }'
 assert 3 '{ if (1-1) return 2; return 3; }'
 assert 2 '{ if (1) return 2; return 3; }'
 assert 2 '{ if (2-1) return 2; return 3; }'
 assert 4 '{ if (0) { 1; 2; return 3; } else { return 4; } }'
 assert 3 '{ if (1) { 1; 2; return 3; } else { return 4; } }'
+
+# for statement
+assert 55 '{ i=0; j=0; for (i=0; i<=10; i=i+1) j=i+j; return j; }'
+assert 3 '{ for (;;) {return 3;} return 5; }'
 
 echo ====TEST OK!=====
