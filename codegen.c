@@ -121,7 +121,14 @@ void gen_stmt(Node *node) {
         return;
     }
 
-    error("[gen_stmt] invalid statement");
+    if (node->kind == ND_BLOCK) {
+        for (Node *n = node->body; n; n = n->next) {
+            gen_stmt(n);
+        }
+        return;
+    }
+
+    error("Invalid statement: node->kind=%d", node->kind);
 }
 
 void codegen(Function *func) {
@@ -134,9 +141,9 @@ void codegen(Function *func) {
     printf("  push %%rbp\n");
     printf("  mov %%rsp, %%rbp\n");
     printf("  sub $%d, %%rsp\n", func->stacksize);
-    for (Node *n = func->body; n != NULL; n = n->next) {
-        gen_stmt(n);
-    }
+
+    gen_stmt(func->body);
+
     // restore stack
     printf(".L.RETURN:\n");
     printf("  mov %%rbp, %%rsp\n");

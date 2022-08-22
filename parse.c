@@ -61,7 +61,8 @@ static Variable *find_local_variable(char *name, int len) {
     return NULL;
 }
 
-// stmt       = "return" expr ";" | expr_stmt
+// stmt       = "return" expr ";" | expr_stmt | "{" compound_stmt
+// compound_stmt = stmt* "}"
 // expr_stmt  = expr ";"
 // expr       = assign
 // assign     = equality ("=" assign)?
@@ -72,6 +73,7 @@ static Variable *find_local_variable(char *name, int len) {
 // unary      = ("+" | "-")? primary
 // primary    = num | ident | "(" expr ")"
 Node *stmt(Token **rest, Token *tok);
+Node *compound_stmt(Token **rest, Token *tok);
 Node *expr_stmt(Token **rest, Token *tok);
 Node *expr(Token **rest, Token *tok);
 Node *assign(Token **rest, Token *tok);
@@ -82,16 +84,37 @@ static Node *mul(Token **rest, Token *tok);
 static Node *unary(Token **rest, Token *tok);
 static Node *primary(Token **rest, Token *tok);
 
-// stmt       = "return" expr ";" | expr_stmt
+// stmt       = "return" expr ";" | expr_stmt | "{" compound_stmt
 Node *stmt(Token **rest, Token *tok) {
     if (equal(tok, "return")) {
         Node *node = new_unary_node(ND_RETURN, expr(&tok->next, tok->next));
         *rest = skip(tok->next, ";");
         return node;
     }
+
+    if (equal(tok, "{")) {
+        Node *node = calloc(1, sizeof(Node));
+        node->kind = ND_BLOCK;
+        node->body = compound_stmt(&tok->next, tok->next);
+        *rest = tok->next;
+        return node;
+    }
+
     Node *node = expr_stmt(&tok, tok);
     *rest = tok;
     return node;
+}
+
+// compound_stmt = stmt* "}"
+Node *compound_stmt(Token **rest, Token *tok) {
+    Node head = {};
+    Node *cur = &head;
+    while (!equal(tok, "}")) {
+        cur->next = stmt(&tok, tok);
+        cur = cur->next;
+    }
+    *rest = skip(tok, "}");
+    return head.next;
 }
 
 // expr_stmt  = expr ";"
