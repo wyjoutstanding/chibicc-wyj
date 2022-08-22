@@ -14,25 +14,28 @@
 // local variables list in function
 static Variable *locals;
 
-static Node *new_binary_node(NodeKind kind, Node *lhs, Node *rhs) {
+static Node *new_node(NodeKind kind) {
     Node *node = (Node *)calloc(1, sizeof(Node));
     node->kind = kind;
+    return node;
+}
+
+static Node *new_binary_node(NodeKind kind, Node *lhs, Node *rhs) {
+    Node *node = new_node(kind);
     node->lhs = lhs;
     node->rhs = rhs;
     return node;
 }
 
 static Node *new_unary_node(NodeKind kind, Node *lhs) {
-    Node *node = (Node *)calloc(1, sizeof(Node));
-    node->kind = kind;
+    Node *node = new_node(kind);
     node->lhs = lhs;
     return node;
 }
 
 // new a variable node
 static Node *new_var_node(char *name, Variable *lvar) {
-    Node *node = (Node *)calloc(1, sizeof(Node));
-    node->kind = ND_VAR;
+    Node *node = new_node(ND_VAR);
     node->name = name;
     node->lvar = lvar;  // local variable
     return node;
@@ -63,7 +66,7 @@ static Variable *find_local_variable(char *name, int len) {
 
 // stmt       = "return" expr ";" | expr_stmt | "{" compound_stmt
 // compound_stmt = stmt* "}"
-// expr_stmt  = expr ";"
+// expr_stmt  = expr? ";"
 // expr       = assign
 // assign     = equality ("=" assign)?
 // equality   = relational ("==" relational | "!=" relational)*
@@ -93,8 +96,7 @@ Node *stmt(Token **rest, Token *tok) {
     }
 
     if (equal(tok, "{")) {
-        Node *node = calloc(1, sizeof(Node));
-        node->kind = ND_BLOCK;
+        Node *node = new_node(ND_BLOCK);
         node->body = compound_stmt(&tok->next, tok->next);
         *rest = tok->next;
         return node;
@@ -117,8 +119,12 @@ Node *compound_stmt(Token **rest, Token *tok) {
     return head.next;
 }
 
-// expr_stmt  = expr ";"
+// expr_stmt  = expr? ";"
 Node *expr_stmt(Token **rest, Token *tok) {
+    if (equal(tok, ";")) {
+        *rest = skip(tok, ";");
+        return new_node(ND_BLOCK);
+    }
     Node *node = new_unary_node(ND_EXPR_STMT, expr(&tok, tok));
     *rest = skip(tok, ";");
     return node;
@@ -269,8 +275,7 @@ static Node *unary(Token **rest, Token *tok) {
 // primary    = num | ident | "(" expr ")"
 static Node *primary(Token **rest, Token *tok) {
     if (tok->kind == TK_NUM) {
-        Node *node = (Node *)calloc(1, sizeof(Node));
-        node->kind = ND_NUM;
+        Node *node = new_node(ND_NUM);
         node->value = tok->value;
         *rest = tok->next;
         return node;
@@ -297,18 +302,10 @@ static Node *primary(Token **rest, Token *tok) {
 }
 
 Function *parse(Token *tok) {
-    Node head;
-    // construct a list of statements AST
-    Node *cur = &head;
-    for (; tok->kind != TK_EOF; cur = cur->next) {
-        cur->next = stmt(&tok, tok);
-    }
-    // End-Of-List marker
-    cur->next = NULL;
-    
     // wrapper of Function
     Function *func = malloc(sizeof(Function));
+    func->body = stmt(&tok, tok);
+    // `locals` must after `body` calculated
     func->locals = locals;
-    func->body = head.next;
     return func;
 }
