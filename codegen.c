@@ -148,9 +148,12 @@ void gen_stmt(Node *node) {
         return;
     }
 
+    // for / while
     if (node->kind == ND_FOR) {
         int lcnt = label_count();
-        gen_stmt(node->init);
+        if (node->init != NULL)
+            gen_stmt(node->init);
+
         printf(".L.BEGIN.%d:\n", lcnt);
         // consider condition is null / not null, this why the condition don't use `expr_stmt` directly.
         // "for" "(" expr_stmt expr?; expr? ")" stmt
@@ -159,9 +162,12 @@ void gen_stmt(Node *node) {
             printf("  cmp $0, %%rax\n");
             printf("  je .L.END.%d\n", lcnt);
         }
+
         gen_stmt(node->then);
+        
         if (node->inc != NULL)
             gen_expr(node->inc);
+        
         printf("  jmp .L.BEGIN.%d\n", lcnt);
         printf(".L.END.%d:\n", lcnt);
         return;

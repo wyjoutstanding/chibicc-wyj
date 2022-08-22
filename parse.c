@@ -92,6 +92,7 @@ static Node *primary(Token **rest, Token *tok);
 // stmt       = "return" expr ";" | expr_stmt | "{" compound_stmt
 //              | "if" "(" expr ")" stmt ("else" stmt)?
 //              | "for" "(" expr_stmt expr?; expr? ")" stmt
+//              | "while" "(" expr ")" stmt
 Node *stmt(Token **rest, Token *tok) {
     if (equal(tok, "return")) {
         Node *node = new_unary_node(ND_RETURN, expr(&tok->next, tok->next));
@@ -134,6 +135,16 @@ Node *stmt(Token **rest, Token *tok) {
             node->inc = expr(&tok, tok);
         tok = skip(tok, ")");
         // then statements
+        node->then = stmt(&tok, tok);
+        *rest = tok;
+        return node;
+    }
+
+    if (equal(tok, "while")) {
+        tok = skip(tok->next, "(");
+        Node *node = new_node(ND_FOR);
+        node->cond = expr(&tok, tok);
+        tok = skip(tok, ")");
         node->then = stmt(&tok, tok);
         *rest = tok;
         return node;
