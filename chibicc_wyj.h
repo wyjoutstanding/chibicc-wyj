@@ -81,6 +81,7 @@ typedef enum {
 struct Node {
     NodeKind kind;  // Node type
     int value;      // Number literal (if kind == ND_NUM)
+    Token *tok;     // Representative token, which shows error message better
     Node *lhs;      // Left-Hand Side
     Node *rhs;      // Right-Hand Side
     Node *next;     // Next stmt

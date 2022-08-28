@@ -52,6 +52,14 @@
 
 [018]：增加 readme，以文档记录开发过程。
 
+[019]：增加 `codegen` 时的错误检查，处理语义错误。例如生成地址时的左值是常量，能给出以下具体错误信息。具体实现则在 `Node` 增加一个 `token` 指针，表明当前节点指向的 `token`。
+
+```shell
+$ ./chibicc-wyj "10=a;"
+10=a; [tokenize.c:37]
+^ Invalid lvalue [codegen.c:24]
+```
+
 # 编译器实现参考资料
 
 [北大编译实践](https://pku-minic.github.io/online-doc/#/)：一个大佬独立撑起增量实验，词法语法分析用工具生成，代码生成手动实现

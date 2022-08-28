@@ -35,7 +35,8 @@ static void verror_at(char *loc, char *fmt, va_list ap) {
     int pos = loc - current_input;
     fprintf(stderr, "%s", current_input);
     fprintf(stderr, " [%s:%d]\n", __FILE__, __LINE__);
-    fprintf(stderr, "%*s", pos, " ");
+    if (pos != 0)
+        fprintf(stderr, "%*s", pos, " ");
     fprintf(stderr, "^ ");
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");

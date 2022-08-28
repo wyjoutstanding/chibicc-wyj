@@ -21,7 +21,7 @@ static void pop(char *arg) {
 
 static void gen_addr(Node *node) {
     if (node->kind != ND_VAR)
-        error("[gen_addr] expected variable: lvalue");
+        error_tok(node->tok, "Invalid lvalue [%s:%d]", __FILE__, __LINE__);
 
     int offset = node->lvar->offset;
     printf("  lea %d(%%rbp), %%rax\n", offset);
@@ -108,7 +108,7 @@ void gen_expr(Node *node) {
         
         /* error handle */
         default:
-            error("unexpected node kind '%s'", node->kind);
+            error_tok(node->tok, "Invalid expression, unexpected node kind '%d' [%s:%d]", node->kind, __FILE__, __LINE__);
             break;
     }
     return;
@@ -173,7 +173,7 @@ void gen_stmt(Node *node) {
         return;
     }
 
-    error("Invalid statement: node->kind=%d", node->kind);
+    error_tok(node->tok, "Invalid statement: node->kind=%d [%s:%d]", node->kind, __FILE__, __LINE__);
 }
 
 void codegen(Function *func) {
