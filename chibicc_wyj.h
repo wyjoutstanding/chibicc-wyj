@@ -87,6 +87,7 @@ struct Node {
     Node *lhs;      // Left-Hand Side
     Node *rhs;      // Right-Hand Side
     Node *next;     // Next stmt
+    bool is_pointer;// for pointer arithmetic, including 4 case: p+num / num+p / p-num / p-p 
     // variable
     char *name;     // Variable name (if kind == ND_VAR)
     Variable *lvar; // Variable info (if kind == ND_VAR) 

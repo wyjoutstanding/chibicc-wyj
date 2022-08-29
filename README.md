@@ -62,6 +62,16 @@ $ ./chibicc-wyj "10=a;"
 
 [020]：增加一元运算符 `&` 和 `*`。分别是取变量地址和指针解引用，在 `codegen` 时取变量地址可用 `rbp+offset` 表示局部变量在栈的地址，指针解引用则直接访问并返回该地址存储的值。`tokenize` 中二者无需改动，均包含在 `TK_PUNCT` 类型中。`parse` 需要 `unary` 规则中增加处理，尤其是 `*` 存在两种意义，可表示乘法和解引用，需要根据优先级处理顺序问题。
 
+[021]：增加指针的算术运算。假设存在指针 `dtype *p`，其有效运算规则（ref. [Pointer Arithmetic in C ](https://overiq.com/c-programming-101/pointer-arithmetic-in-c/)）为：
+
+- 加上一个整数：`p+2 => addr(p)+sizeof(dtype)*2`，指针加上2个单位的偏移
+
+- 减去一个整数：`p-3 => addr(p)-sizeof(dtype)*3`，指针减去3个单位的偏移
+
+- 同类型指针相减：`p1-p2 => (addr(p1)-addr(p2))/sizeof(dtype)`，该结果为二者相差的单位个数
+
+在实现时，`tokenize` 和 `parse` 无需改变，可在 `codegen` 遇见 `SUB` 和 `ADD` 节点时加入指针运算处理。或者直接在 `parse` 处理，指针加/减一个整数时，就插入一个乘法节点 `ND_MUL`，两个指针相减则插入除法节点 `ND_DIV`。为了能处理表达式中连续的指针运算如`(&p+2)-&p+3`，需在 `Node` 增加一个 `is_pointer` 指示当前结点是否为指针，从而支持指针计算。遇到两个指针相减的节点时，该节点 `is_pointer` 需置为 `false`，因为它们结果是普通数值，而非指针。
+
 # 编译器实现参考资料
 
 [北大编译实践](https://pku-minic.github.io/online-doc/#/)：一个大佬独立撑起增量实验，词法语法分析用工具生成，代码生成手动实现
