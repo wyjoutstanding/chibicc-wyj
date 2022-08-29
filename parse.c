@@ -76,7 +76,7 @@ static Variable *find_local_variable(char *name, int len) {
 // relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 // add        = mul ("+" mul | "-" mul)*
 // mul        = unary ("*" unary | "/" unary)*
-// unary      = ("+" | "-")? primary
+// unary   = ("+" | "-" | "&" | "*")? primary
 // primary    = num | ident | "(" expr ")"
 Node *stmt(Token **rest, Token *tok);
 Node *compound_stmt(Token **rest, Token *tok);
@@ -288,7 +288,7 @@ static Node *mul(Token **rest, Token *tok) {
 }
 
 
-// unary   = ("+" | "-")? primary
+// unary   = ("+" | "-" | "&" | "*")? primary
 static Node *unary(Token **rest, Token *tok) {
     Node *node = NULL;
     if (equal(tok, "+")) {
@@ -299,6 +299,18 @@ static Node *unary(Token **rest, Token *tok) {
 
     if (equal(tok, "-")) {
         node = new_unary_node(ND_NEG, unary(&tok, tok->next), tok->next);
+        *rest = tok;
+        return node;
+    }
+
+    if (equal(tok, "&")) {
+        node = new_unary_node(ND_ADDR, unary(&tok, tok->next), tok->next);
+        *rest = tok;
+        return node;
+    }
+
+    if (equal(tok, "*")) {
+        node = new_unary_node(ND_DEREF, unary(&tok, tok->next), tok->next);
         *rest = tok;
         return node;
     }

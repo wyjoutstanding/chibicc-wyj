@@ -11,6 +11,8 @@
 
 #include "chibicc_wyj.h"
 
+static void gen_expr(Node *node);
+
 static void push(void) {
     printf("  push %%rax\n");
 }
@@ -20,6 +22,12 @@ static void pop(char *arg) {
 }
 
 static void gen_addr(Node *node) {
+    // consider case: `*x=8;`
+    if (node->kind == ND_DEREF) {
+        gen_expr(node->lhs);
+        return;
+    }
+
     if (node->kind != ND_VAR)
         error_tok(node->tok, "Invalid lvalue [%s:%d]", __FILE__, __LINE__);
 
@@ -42,7 +50,7 @@ static int label_count() {
     return cnt++;
 }
 
-void gen_expr(Node *node) {
+static void gen_expr(Node *node) {
     // simplify comparision generator code
     static char *cmp_asm_names[] = {"sete", "setne", "setl", "setle", "setg", "setge"};
     #define CMP_ASM_NAME(x) cmp_asm_names[(x) - ND_EQ]
@@ -55,6 +63,13 @@ void gen_expr(Node *node) {
         case ND_NEG:
             gen_expr(node->lhs);
             printf("  neg %%rax\n");
+            return;
+        case ND_ADDR:
+            gen_addr(node->lhs);
+            return;
+        case ND_DEREF:
+            gen_addr(node);
+            printf("  mov (%%rax), %%rax\n");
             return;
         case ND_VAR:
             gen_addr(node);
@@ -114,7 +129,7 @@ void gen_expr(Node *node) {
     return;
 }
 
-void gen_stmt(Node *node) {
+static void gen_stmt(Node *node) {
     if (node->kind == ND_EXPR_STMT) {
         gen_expr(node->lhs);
         return;

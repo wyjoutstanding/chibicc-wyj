@@ -66,6 +66,8 @@ typedef enum {
     ND_GT,          // >
     ND_GE,          // >=
     ND_VAR,         // variable
+    ND_ADDR,        // unary &
+    ND_DEREF,       // unary *
     /* statement */
     ND_FOR,         // for / while statement
     ND_IF,          // if statement
