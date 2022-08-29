@@ -21,6 +21,18 @@
 #include <ctype.h>
 #include <stdarg.h>
 
+typedef struct Type Type;
+// type kind
+typedef enum {
+    TY_INT,     // int
+    TY_PTR      // pointer
+} TypeKind;
+
+struct Type {
+    TypeKind kind;  // type kind
+    Type *base;     // if (kind == TY_PTR) current pointer point to the type of base
+};
+
 //
 // Tokenize
 //
@@ -65,18 +77,18 @@ typedef enum {
     ND_LE,          // <=
     ND_GT,          // >
     ND_GE,          // >=
+    /* others */
     ND_VAR,         // variable
     ND_ADDR,        // unary &
     ND_DEREF,       // unary *
+    ND_ASSIGN,      // =
+    ND_NUM,         // Integer
     /* statement */
     ND_FOR,         // for / while statement
     ND_IF,          // if statement
     ND_BLOCK,       // {...}: block statement
     ND_RETURN,      // keyword: return statement
     ND_EXPR_STMT,   // expression statement
-    ND_ASSIGN,      // =
-    /* integer */
-    ND_NUM          // Integer
 } NodeKind;
 
 // AST node type
@@ -87,7 +99,7 @@ struct Node {
     Node *lhs;      // Left-Hand Side
     Node *rhs;      // Right-Hand Side
     Node *next;     // Next stmt
-    bool is_pointer;// for pointer arithmetic, including 4 case: p+num / num+p / p-num / p-p 
+    Type *ty;       // Node type system
     // variable
     char *name;     // Variable name (if kind == ND_VAR)
     Variable *lvar; // Variable info (if kind == ND_VAR) 
@@ -131,5 +143,10 @@ void error_at(char *loc, char *fmt, ...);
 void error_tok(Token *tok, char *fmt, ...);
 bool equal(Token *tok, char *op);
 Token *skip(Token *tok, char *s);
+
+// type
+extern Type *ty_int;
+bool is_integer(Node *node);
+void add_type(Node *node);
 
 #endif

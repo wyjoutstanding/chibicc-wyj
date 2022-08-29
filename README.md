@@ -72,6 +72,20 @@ $ ./chibicc-wyj "10=a;"
 
 在实现时，`tokenize` 和 `parse` 无需改变，可在 `codegen` 遇见 `SUB` 和 `ADD` 节点时加入指针运算处理。或者直接在 `parse` 处理，指针加/减一个整数时，就插入一个乘法节点 `ND_MUL`，两个指针相减则插入除法节点 `ND_DIV`。为了能处理表达式中连续的指针运算如`(&p+2)-&p+3`，需在 `Node` 增加一个 `is_pointer` 指示当前结点是否为指针，从而支持指针计算。遇到两个指针相减的节点时，该节点 `is_pointer` 需置为 `false`，因为它们结果是普通数值，而非指针。
 
+# 引入类型系统
+
+[022] : 使用类型系统重构指针算术运算。首次引入类型定义系统，给每个结点增加 `Type` 类型，目前仅有 `INT, PTR` 两种类型。根据孩子结点类型来解析/推导父亲结点的类型。定义一个 `add_type` 函数，实现从一个AST根结点递归推导所有结点类型。最底层的判断规则仅不包含语句级别，具体如下：
+
+- `add, sub, mul, div, assign`：`node->type=node->lhs->type`（获得左孩子类型）
+
+- `eq, neq, gt, ge, lt, le, var, num`：`node->type=ty_int`（比较运算结点赋为整型，目前变量var和数值num仅有int类型）
+
+- `addr`：`node->type=pointer_to(node->lhs->type)`（取地址结点赋为指针）
+
+- `defer`：`node->type=node->lhs->type->base` （指针解引用指向孩子结点的基类）
+
+重构指针运算时，仅需将之前的 `is_pointer` 用 `base` 是否为空来判断或者根据结点是否为 `PTR` 类型判断。
+
 # 编译器实现参考资料
 
 [北大编译实践](https://pku-minic.github.io/online-doc/#/)：一个大佬独立撑起增量实验，词法语法分析用工具生成，代码生成手动实现

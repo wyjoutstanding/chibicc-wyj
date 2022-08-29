@@ -258,59 +258,62 @@ static Node *add(Token **rest, Token *tok) {
     for (;;) {
         if (equal(tok, "+")) {
             Node *rnode = mul(&tok, tok->next);
-            
+
+            // update node type
+            add_type(node);
+            add_type(rnode);
+
             // normal case: num + num
-            if (!node->is_pointer && !rnode->is_pointer) {
+            if (is_integer(node) && is_integer(rnode)) {
                 node = new_binary_node(ND_ADD, node, rnode, tok);
                 continue;
             }
 
-            if (node->is_pointer && rnode->is_pointer) {
+            if (node->ty->base && rnode->ty->base) {
                 error_tok(tok, "pointer + pointer is invalid [%s:%d]", __FILE__, __LINE__);
             }
             
+            // pointer case: num + pointer => pointer + num
+            if (rnode->ty->base) {
+                Node *tmp = rnode;
+                rnode = node;
+                node = tmp;
+            }
             // construct mul node, which inserted to scale pointer offset unit
-            Node *num_node = new_num_node(8, tok);
-            
-            // pointer case: pointer + num
-            if (node->is_pointer) {
-                rnode = new_binary_node(ND_MUL, rnode, num_node, tok); 
-            }
-            // pointer case: num + pointer
-            if (rnode->is_pointer) {
-                node = new_binary_node(ND_MUL, node, num_node, tok);
-            }
-
+            rnode = new_binary_node(ND_MUL, rnode, new_num_node(8, tok), tok);
             node = new_binary_node(ND_ADD, node, rnode, tok);
-            node->is_pointer = true;
             continue;
         }
         
         if (equal(tok, "-")) {
             Node *rnode = mul(&tok, tok->next);
 
+            // update node type
+            add_type(node);
+            add_type(rnode);
+
             // normal case: num - num
-            if (!node->is_pointer && !node->is_pointer) {
+            if (is_integer(node) && is_integer(rnode)) {
                 node = new_binary_node(ND_SUB, node, rnode, tok->next);
                 continue;
             }
 
-            // pointer arithmetic case
             // construct num node used to scale pointer unit
             Node *num_node = new_num_node(8, tok);
 
             // pointer case: pointer - pointer
-            if (node->is_pointer && rnode->is_pointer) {
+            if (node->ty->base && rnode->ty->base) {
                 node = new_binary_node(ND_SUB, node, rnode, tok);
                 node = new_binary_node(ND_DIV, node, num_node, tok);
+                // must explicit set type, otherwise this will infered as TY_PTR
+                node->ty = ty_int;
                 continue;
             }
 
             // pointer case: pointer - num
-            if (node->is_pointer) {
+            if (node->ty->base) {
                 rnode = new_binary_node(ND_MUL, rnode, num_node, tok);
                 node = new_binary_node(ND_SUB, node, rnode, tok);
-                node->is_pointer = true;
                 continue;
             }
 
@@ -362,7 +365,8 @@ static Node *unary(Token **rest, Token *tok) {
 
     if (equal(tok, "&")) {
         node = new_unary_node(ND_ADDR, unary(&tok, tok->next), tok->next);
-        node->is_pointer = true;
+        // node->ty->base = true;
+        add_type(node);
         *rest = tok;
         return node;
     }
